@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "lazy-report-marketplace",
+  "description": "Claude Code plugin marketplace for Lazy Report.",
+  "owner": {
+    "name": "Lazy Report"
+  },
+  "plugins": [
+    {
+      "name": "lazy-report",
+      "source": "./",
+      "description": "Claude Code plugin that records project activity and generates daily, weekly, and business reports from change logs.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Lazy Report"
+      },
+      "homepage": "https://github.com/Cyrus-terra/lazy-report",
+      "repository": "https://github.com/Cyrus-terra/lazy-report",
+      "license": "MIT",
+      "keywords": [
+        "claude-code",
+        "plugin",
+        "skills",
+        "hooks",
+        "daily-report",
+        "weekly-report",
+        "project-summary",
+        "activity-log"
+      ],
+      "category": "workflow",
+      "tags": [
+        "reports",
+        "activity-log",
+        "hooks",
+        "skills"
+      ]
+    }
+  ]
+}

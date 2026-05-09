@@ -48,6 +48,7 @@ Lazy Report only activates when the current path or edited file is inside a git 
 ```txt
 lazy-report/
 ├── .claude-plugin/
+│   ├── marketplace.json
 │   └── plugin.json
 ├── hooks/
 │   ├── hooks.json
