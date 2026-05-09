@@ -104,7 +104,6 @@ function hasProjectMarker(root) {
       project: '项目',
       created: '创建时间',
       branch: '分支',
-      tool: '触发工具',
       changeType: '改动类型',
       filePath: '文件路径',
       changeLog: '改动记录',
@@ -127,14 +126,12 @@ function hasProjectMarker(root) {
       riskRename: '⚠️ 文件被重命名/移动，请确保所有 import/require 引用路径已同步更新。',
       suggestDefault: '建议提交前运行相关测试，确保改动无回归问题。',
       suggestUntracked: ' 新文件未跟踪，如果正式纳入版本控制，请记得 `git add`。',
-      diffDetail: '完整差异',
     } : {
       logTitle: 'Claude Code Change Log',
       session: 'Session',
       project: 'Project',
       created: 'Created',
       branch: 'Branch',
-      tool: 'Tool',
       changeType: 'Change Type',
       filePath: 'File',
       changeLog: 'Change Record',
@@ -157,7 +154,6 @@ function hasProjectMarker(root) {
       riskRename: '⚠️ File renamed/moved, ensure all import/require paths are updated.',
       suggestDefault: 'Run relevant tests before committing to avoid regressions.',
       suggestUntracked: ' File is untracked; remember to `git add` if adding to version control.',
-      diffDetail: 'Full Diff',
     };
 
     // 根据 git status 判断改动类型
@@ -180,7 +176,7 @@ function hasProjectMarker(root) {
       changeSummary = T.msgModify(relPath);
     }
 
-    // 读取实际 diff 内容
+    // 读取 diff 行数，用于总结
     const diffContent = exec(`git diff -- "${relPath.replace(/"/g, '\\"')}"`, root);
     const diffLines = diffContent ? diffContent.split('\n').length : 0;
     if (diffLines > 0) {
@@ -210,16 +206,12 @@ function hasProjectMarker(root) {
       '',
       `- **${T.project}**: ${path.basename(root)}`,
       `- **${T.branch}**: ${branch}`,
-      `- **${T.tool}**: ${event.tool_name || 'unknown'}`,
       `- **${T.changeType}**: ${changeType}`,
       `- **${T.filePath}**: \`${relPath}\``,
       '',
       `### ${T.changeLog}`,
       '',
       changeSummary,
-      '',
-      `${diffStat ? `\n\`\`\`text\n${diffStat}\n\`\`\`\n` : ''}`,
-      `${diffContent ? `\n<details>\n<summary>${T.diffDetail}</summary>\n\n\`\`\`diff\n${diffContent.slice(0, 8000)}\n\`\`\`\n\n</details>\n` : ''}`,
       '',
       `### ${T.risk}`,
       '',
