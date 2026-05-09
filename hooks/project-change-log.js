@@ -85,7 +85,7 @@ function hasProjectMarker(root) {
 
     const relPath = path.relative(root, absPath) || path.basename(absPath);
     if (relPath.startsWith('.git/')) return;
-    if (/^CLAUDE_(CODE_CHANGES|ANALYSIS)_/.test(path.basename(relPath))) return;
+    if (/^CLAUDE_(CHANGES|ANALYSIS_)/.test(path.basename(relPath))) return;
 
     const sessionId = sanitize(event.session_id || process.env.CLAUDE_SESSION_ID || 'session');
     const branch = exec('git branch --show-current', root) || 'no-branch';
@@ -93,29 +93,146 @@ function hasProjectMarker(root) {
     const diffStat = exec(`git diff --stat -- "${relPath.replace(/"/g, '\\"')}"`, root);
     const diffNameStatus = exec(`git diff --name-status -- "${relPath.replace(/"/g, '\\"')}"`, root);
     const time = new Date().toISOString();
-    const logFile = path.join(root, `CLAUDE_CODE_CHANGES_${sessionId}.md`);
+    const logFile = path.join(root, 'CLAUDE_CHANGES.md');
 
-    let action = event.tool_name || 'code-change';
-    if (/^\s*[MADRCU?]/.test(statusLine)) action += ' / changed';
-    if (/^\s*D/.test(statusLine)) action += ' / deletion-or-rollback';
-    if (/^\s*M/.test(statusLine) && !diffStat) action += ' / possible-rollback-or-format-only';
+    // 检测系统语言
+    const sysLang = (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES || 'en_US.UTF-8').toLowerCase();
+    const isZh = sysLang.startsWith('zh');
+    const T = isZh ? {
+      logTitle: 'Claude Code 改动记录',
+      session: '会话ID',
+      project: '项目',
+      created: '创建时间',
+      branch: '分支',
+      tool: '触发工具',
+      changeType: '改动类型',
+      filePath: '文件路径',
+      changeLog: '改动记录',
+      risk: '风险提示',
+      suggestion: '优化建议',
+      typeModify: '修改文件',
+      typeNewUntracked: '新增文件（未跟踪）',
+      typeNewStaged: '新增文件（已暂存）',
+      typeDelete: '删除文件',
+      typeRename: '重命名/移动',
+      msgNewUntracked: (p) => `新增文件 \`${p}\`，该文件之前不在版本控制中。`,
+      msgNewStaged: (p) => `新增文件 \`${p}\`，已加入暂存区。`,
+      msgDelete: (p) => `删除文件 \`${p}\`，请确认是否需要回滚或清理关联引用。`,
+      msgRename: (p) => `文件 \`${p}\` 被重命名或移动。`,
+      msgModify: (p) => `修改文件 \`${p}\`。`,
+      msgLines: (n) => ` 共约 ${n} 行差异。`,
+      msgNoContent: '（无实际内容差异，可能仅格式变动或已回滚）。',
+      riskNormal: '暂无特别提示，请人工确认。',
+      riskDelete: '⚠️ 文件被删除，请确认业务逻辑中无其他模块依赖此文件，避免运行时异常。',
+      riskRename: '⚠️ 文件被重命名/移动，请确保所有 import/require 引用路径已同步更新。',
+      suggestDefault: '建议提交前运行相关测试，确保改动无回归问题。',
+      suggestUntracked: ' 新文件未跟踪，如果正式纳入版本控制，请记得 `git add`。',
+      diffDetail: '完整差异',
+    } : {
+      logTitle: 'Claude Code Change Log',
+      session: 'Session',
+      project: 'Project',
+      created: 'Created',
+      branch: 'Branch',
+      tool: 'Tool',
+      changeType: 'Change Type',
+      filePath: 'File',
+      changeLog: 'Change Record',
+      risk: 'Risk Alert',
+      suggestion: 'Suggestion',
+      typeModify: 'Modified',
+      typeNewUntracked: 'New file (untracked)',
+      typeNewStaged: 'New file (staged)',
+      typeDelete: 'Deleted',
+      typeRename: 'Renamed/Moved',
+      msgNewUntracked: (p) => `New file \`${p}\`, not yet tracked by version control.`,
+      msgNewStaged: (p) => `New file \`${p}\`, added to staging area.`,
+      msgDelete: (p) => `Deleted file \`${p}\`, verify no other modules depend on this file.`,
+      msgRename: (p) => `File \`${p}\` was renamed or moved.`,
+      msgModify: (p) => `Modified file \`${p}\`.`,
+      msgLines: (n) => ` Approximately ${n} lines changed.`,
+      msgNoContent: ' (no content diff, may be format-only or rolled back).',
+      riskNormal: 'No specific risk detected. Manual review recommended.',
+      riskDelete: '⚠️ File deleted, ensure no dependent references exist to avoid runtime errors.',
+      riskRename: '⚠️ File renamed/moved, ensure all import/require paths are updated.',
+      suggestDefault: 'Run relevant tests before committing to avoid regressions.',
+      suggestUntracked: ' File is untracked; remember to `git add` if adding to version control.',
+      diffDetail: 'Full Diff',
+    };
+
+    // 根据 git status 判断改动类型
+    let changeType = T.typeModify;
+    let changeSummary = '';
+    if (/^\s*\?/.test(statusLine)) {
+      changeType = T.typeNewUntracked;
+      changeSummary = T.msgNewUntracked(relPath);
+    } else if (/^\s*A/.test(statusLine)) {
+      changeType = T.typeNewStaged;
+      changeSummary = T.msgNewStaged(relPath);
+    } else if (/^\s*D/.test(statusLine)) {
+      changeType = T.typeDelete;
+      changeSummary = T.msgDelete(relPath);
+    } else if (/^\s*R/.test(statusLine)) {
+      changeType = T.typeRename;
+      changeSummary = T.msgRename(relPath);
+    } else if (/^\s*M/.test(statusLine)) {
+      changeType = T.typeModify;
+      changeSummary = T.msgModify(relPath);
+    }
+
+    // 读取实际 diff 内容
+    const diffContent = exec(`git diff -- "${relPath.replace(/"/g, '\\"')}"`, root);
+    const diffLines = diffContent ? diffContent.split('\n').length : 0;
+    if (diffLines > 0) {
+      changeSummary += T.msgLines(diffLines);
+    }
+    if (!diffContent && /^\s*M/.test(statusLine)) {
+      changeSummary += T.msgNoContent;
+    }
+
+    // 风险提示（基于改动特征自动生成）
+    let riskNote = T.riskNormal;
+    if (/^\s*D/.test(statusLine)) {
+      riskNote = T.riskDelete;
+    }
+    if (/^\s*R/.test(statusLine)) {
+      riskNote = T.riskRename;
+    }
+
+    // 优化建议
+    let suggestion = T.suggestDefault;
+    if (/^\s*\?/.test(statusLine)) {
+      suggestion += T.suggestUntracked;
+    }
 
     const entry = [
       `\n## ${time}`,
-      `- Project: ${path.basename(root)}`,
-      `- Branch: ${branch}`,
-      `- Tool: ${event.tool_name || 'unknown'}`,
-      `- Action: ${action}`,
-      `- File: ${relPath}`,
-      statusLine ? `- Git status: \`${statusLine.replace(/`/g, '\\`')}\`` : '- Git status: unavailable or unchanged',
-      diffNameStatus ? `- Diff name-status: \`${diffNameStatus.replace(/`/g, '\\`')}\`` : '- Diff name-status: none',
-      diffStat ? `\n\`\`\`text\n${diffStat}\n\`\`\`` : '',
-      '- Summary: Claude modified this file. Review the git diff for exact details.',
+      '',
+      `- **${T.project}**: ${path.basename(root)}`,
+      `- **${T.branch}**: ${branch}`,
+      `- **${T.tool}**: ${event.tool_name || 'unknown'}`,
+      `- **${T.changeType}**: ${changeType}`,
+      `- **${T.filePath}**: \`${relPath}\``,
+      '',
+      `### ${T.changeLog}`,
+      '',
+      changeSummary,
+      '',
+      `${diffStat ? `\n\`\`\`text\n${diffStat}\n\`\`\`\n` : ''}`,
+      `${diffContent ? `\n<details>\n<summary>${T.diffDetail}</summary>\n\n\`\`\`diff\n${diffContent.slice(0, 8000)}\n\`\`\`\n\n</details>\n` : ''}`,
+      '',
+      `### ${T.risk}`,
+      '',
+      riskNote,
+      '',
+      `### ${T.suggestion}`,
+      '',
+      suggestion,
       '',
     ].filter(Boolean).join('\n');
 
     if (!fs.existsSync(logFile)) {
-      fs.writeFileSync(logFile, `# Claude Code Change Log\n\nSession: ${sessionId}\nProject: ${path.basename(root)}\nCreated: ${time}\n\n`, 'utf8');
+      fs.writeFileSync(logFile, `# ${T.logTitle}\n\n${T.session}: ${sessionId}\n${T.project}: ${path.basename(root)}\n${T.created}: ${time}\n\n---\n`, 'utf8');
     }
     fs.appendFileSync(logFile, entry, 'utf8');
   } catch (error) {
