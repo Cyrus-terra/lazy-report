@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+.env
+.env.*
+*.log
+CLAUDE_CODE_CHANGES_*.md
+CLAUDE_ANALYSIS_*.md
+CLAUDE_WEEKLY_REPORT_*.md
+CLAUDE_BUSINESS_SUMMARY_*.md
+周报/

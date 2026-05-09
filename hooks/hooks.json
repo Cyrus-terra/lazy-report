@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/project-change-log.js\" 2>/dev/null || true",
+            "timeout": 10,
+            "statusMessage": "Recording project change"
+          }
+        ],
+        "description": "Record Lazy Report project change logs after Claude modifies files",
+        "id": "lazy-report:post-tool-use:change-log"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/project-prompt-summary-trigger.js\" 2>/dev/null || true",
+            "timeout": 10,
+            "statusMessage": "Checking project summary request"
+          }
+        ],
+        "description": "Inject Lazy Report context for business/project/work summary prompts",
+        "id": "lazy-report:user-prompt-submit:summary-trigger"
+      }
+    ]
+  }
+}
