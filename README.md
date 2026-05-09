@@ -11,7 +11,7 @@ It is designed to activate only inside git-backed software projects, so ordinary
 - Automatically loads plugin hooks from `hooks/hooks.json` after plugin installation.
 - Records Claude Code file changes after `Write`, `Edit`, and `NotebookEdit`.
 - Writes project change logs to the project root:
-  `CLAUDE_CODE_CHANGES_<session-id>.md`
+  `CLAUDE_CHANGES.md`
 - Records project analysis tasks to separate project-root files:
   `CLAUDE_ANALYSIS_<YYYYMMDD-HHMMSS>_<topic>.md`
 - Generates daily reports when you type `日报` in a qualifying project.
@@ -83,14 +83,14 @@ If Claude Code is already running, restart Claude Code or open `/hooks` once aft
 When Claude modifies files using `Write`, `Edit`, or `NotebookEdit`, the plugin hook writes or appends a change log in the project root:
 
 ```txt
-CLAUDE_CODE_CHANGES_<session-id>.md
+CLAUDE_CHANGES.md
 ```
 
 The change log is not synthesized by the skill. It is created only after Claude actually modifies a file in a qualifying project.
 
 ### 2. Daily reports
 
-When you type `日报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CODE_CHANGES_*.md` files.
+When you type `日报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CHANGES.md` files.
 
 - If no time range is specified, the current local day is used.
 - If a date, date range, or custom period is specified, that period is used.
@@ -101,7 +101,7 @@ When you type `日报` inside a qualifying project, Claude summarizes root-level
 
 ### 3. Weekly reports
 
-When you type `周报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CODE_CHANGES_*.md` files.
+When you type `周报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CHANGES.md` files.
 
 - If no time range is specified, the current natural week is used.
 - If a date, week, month, range, or custom period is specified, that period is used.
@@ -123,7 +123,7 @@ When you type `业务总结`, `业务汇总`, `业务摘要`, `项目总结`, `�
 
 ## If no change log exists
 
-If `CLAUDE_CODE_CHANGES_*.md` does not exist, Claude should not invent report content. Check:
+If `CLAUDE_CHANGES.md` does not exist, Claude should not invent report content. Check:
 
 - the plugin is installed and enabled
 - hooks are visible in `/hooks`
