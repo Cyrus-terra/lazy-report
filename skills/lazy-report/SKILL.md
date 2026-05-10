@@ -14,8 +14,9 @@ Record and summarize project activity only when working inside a software projec
    `CLAUDE_CHANGES.md`
    The skill itself does not synthesize this file; it is created only when the Lazy Report plugin is installed/enabled, its hooks are loaded, and Claude modifies files inside a qualifying project.
 
-2. Each qualifying project analysis task must be written to a separate file in the current project root:
-   `CLAUDE_ANALYSIS_<YYYYMMDD-HHMMSS>_<short-topic>.md`
+2. Each qualifying project analysis task must be appended to a single file in the current project root:
+   `CLAUDE_ANALYSIS.md`
+   Separate analysis entries must be distinguished by timestamp inside the file; do not create per-analysis files.
 
 3. Daily report requests (`日报`) summarize the project change logs into:
    `$HOME/Desktop/周报/日报_<YYYYMMDD>-<YYYYMMDD>.md`
@@ -170,36 +171,24 @@ If the user only types `周报`, generate the current project's weekly report, n
 
 ## Analysis record requirements
 
-For every qualifying project analysis task, create one new markdown file in the project root.
+For every qualifying project analysis task, append one new timestamped entry to `CLAUDE_ANALYSIS.md` in the project root. Do not create separate `CLAUDE_ANALYSIS_<timestamp>_<topic>.md` files.
 
-The file must include:
+The file should use this structure:
 
 ```md
 # Claude Analysis Record
 
-- Time: <ISO timestamp or local timestamp>
+## <ISO timestamp or local timestamp>
+
 - Project: <project directory name>
 - Question: <the user's analysis question>
 
-## Analysis Result
+### Analysis Result
 
 <the analysis result given to the user>
 ```
 
-## Naming
-
-Use:
-
-```txt
-CLAUDE_ANALYSIS_<YYYYMMDD-HHMMSS>_<short-topic>.md
-```
-
-Examples:
-
-```txt
-CLAUDE_ANALYSIS_20260509-132501_mcp-agent-integration.md
-CLAUDE_ANALYSIS_20260509-133012_bug-root-cause.md
-```
+If `CLAUDE_ANALYSIS.md` does not exist, create it with `# Claude Analysis Record` first, then append the timestamped entry. If it already exists, preserve existing content and append the new entry at the end.
 
 ## Code change logging
 

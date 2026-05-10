@@ -12,8 +12,8 @@ It is designed to activate only inside git-backed software projects, so ordinary
 - Records Claude Code file changes after `Write`, `Edit`, and `NotebookEdit`.
 - Writes project change logs to the project root:
   `CLAUDE_CHANGES.md`
-- Records project analysis tasks to separate project-root files:
-  `CLAUDE_ANALYSIS_<YYYYMMDD-HHMMSS>_<topic>.md`
+- Records project analysis tasks by appending timestamped entries to the project root:
+  `CLAUDE_ANALYSIS.md`
 - Generates daily reports when you type `日报` in a qualifying project.
 - Generates weekly reports when you type `周报` in a qualifying project.
 - Generates detailed business/project/work summaries when you type keywords such as `业务总结`, `业务汇总`, `项目总结`, or `工作总结`.
@@ -88,7 +88,17 @@ CLAUDE_CHANGES.md
 
 The change log is not synthesized by the skill. It is created only after Claude actually modifies a file in a qualifying project.
 
-### 2. Daily reports
+### 2. Analysis records
+
+When Claude performs a qualifying project analysis task, such as code analysis, architecture analysis, bug/root-cause analysis, implementation planning, refactor analysis, code review analysis, or MCP/API capability analysis, the analysis is recorded in the project root:
+
+```txt
+CLAUDE_ANALYSIS.md
+```
+
+Analysis records are appended to this single file instead of creating a new file each time. Each entry is separated by a timestamp and includes the project name, the user's question, and the analysis result.
+
+### 3. Daily reports
 
 When you type `日报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CHANGES.md` files.
 
@@ -99,7 +109,7 @@ When you type `日报` inside a qualifying project, Claude summarizes root-level
 - The report is written to:
   `$HOME/Desktop/周报/日报_<YYYYMMDD>-<YYYYMMDD>.md`
 
-### 3. Weekly reports
+### 4. Weekly reports
 
 When you type `周报` inside a qualifying project, Claude summarizes root-level `CLAUDE_CHANGES.md` files.
 
@@ -110,7 +120,23 @@ When you type `周报` inside a qualifying project, Claude summarizes root-level
 - The report is written to:
   `$HOME/Desktop/周报/周报_<YYYYMMDD>-<YYYYMMDD>.md`
 
-### 4. Business summaries
+#### Multi-project weekly reports
+
+By default, `周报` only summarizes the current project. To generate one weekly report across multiple projects, explicitly provide the scope, such as:
+
+- multiple project paths;
+- a parent workspace directory to scan;
+- a list of repositories.
+
+For multi-project weekly reports, Claude should only read qualifying git-backed software project roots, read each project's `CLAUDE_CHANGES.md`, group the report by project, then add a cross-project summary. It should not scan the whole home directory by default.
+
+The combined report is written to:
+
+```txt
+$HOME/Desktop/周报/周报_<YYYYMMDD>-<YYYYMMDD>.md
+```
+
+### 5. Business summaries
 
 When you type `业务总结`, `业务汇总`, `业务摘要`, `项目总结`, `项目汇总`, `工作总结`, `工作汇总`, `阶段总结`, or a similar summary request inside a qualifying project, the `UserPromptSubmit` hook injects context so Claude summarizes the project change logs from a business/product perspective.
 
@@ -134,7 +160,7 @@ If `CLAUDE_CHANGES.md` does not exist, Claude should not invent report content. 
 ## Security notes
 
 - Review generated logs and reports before sharing or committing them.
-- The included `.gitignore` ignores generated change logs, analysis files, weekly reports, business summaries, environment files, logs, and dependencies by default.
+- The included `.gitignore` ignores generated change logs, analysis records, weekly reports, business summaries, environment files, logs, and dependencies by default.
 - Do not commit your personal Claude settings file, environment files, API keys, or tokens.
 
 ## License
