@@ -32,6 +32,52 @@ function sanitize(value) {
     .slice(0, 80) || 'unknown';
 }
 
+function systemTime() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
+  ].join(' ');
+}
+
+function describeFunctionLevel(relPath, diffContent, isZh) {
+  const lowerPath = relPath.toLowerCase();
+  const diff = diffContent.toLowerCase();
+  const text = `${lowerPath}\n${diff}`;
+
+  const zh = {
+    docs: '功能层面：更新项目说明或使用文档，帮助使用者理解插件能力和使用方式。',
+    tests: '功能层面：调整测试相关内容，用于验证或保障项目行为。',
+    config: '功能层面：调整项目配置或插件配置，影响构建、运行或插件加载方式。',
+    hook: '功能层面：调整 Claude Code 钩子逻辑，影响项目改动记录的生成方式。',
+    skill: '功能层面：调整 Lazy Report 技能说明，影响分析、日报、周报或总结的生成规则。',
+    api: '功能层面：调整接口或数据交互相关逻辑。',
+    ui: '功能层面：调整页面或交互相关逻辑。',
+    default: '功能层面：调整项目实现细节，影响对应模块的运行行为。',
+  };
+  const en = {
+    docs: 'Functional impact: updates project docs or usage guidance so users can understand plugin behavior.',
+    tests: 'Functional impact: adjusts test-related content used to verify project behavior.',
+    config: 'Functional impact: adjusts project or plugin configuration, affecting build, runtime, or plugin loading.',
+    hook: 'Functional impact: adjusts Claude Code hook logic, affecting how project change logs are generated.',
+    skill: 'Functional impact: adjusts Lazy Report skill instructions, affecting analysis, daily report, weekly report, or summary generation rules.',
+    api: 'Functional impact: adjusts API or data interaction logic.',
+    ui: 'Functional impact: adjusts page or interaction logic.',
+    default: 'Functional impact: changes project implementation details and affects the related module behavior.',
+  };
+  const T = isZh ? zh : en;
+
+  if (/readme|\.md$|docs?\//.test(lowerPath)) return T.docs;
+  if (/test|spec|__tests__/.test(lowerPath)) return T.tests;
+  if (/package\.json|tsconfig|vite\.config|next\.config|hooks\.json|marketplace\.json|plugin\.json|\.ya?ml$|\.toml$/.test(lowerPath)) return T.config;
+  if (/hooks?\//.test(lowerPath) || /claude_changes|change log|改动记录/.test(text)) return T.hook;
+  if (/skills?\//.test(lowerPath) || /日报|周报|业务总结|analysis|report/.test(text)) return T.skill;
+  if (/api|route|controller|service|request|response/.test(text)) return T.api;
+  if (/component|page|view|style|css|html|button|form/.test(text)) return T.ui;
+  return T.default;
+}
+
 function isInside(child, parent) {
   const rel = path.relative(parent, child);
   return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
@@ -92,7 +138,7 @@ function hasProjectMarker(root) {
     const statusLine = exec(`git status --short -- "${relPath.replace(/"/g, '\\"')}"`, root);
     const diffStat = exec(`git diff --stat -- "${relPath.replace(/"/g, '\\"')}"`, root);
     const diffNameStatus = exec(`git diff --name-status -- "${relPath.replace(/"/g, '\\"')}"`, root);
-    const time = new Date().toISOString();
+    const time = systemTime();
     const logFile = path.join(root, 'CLAUDE_CHANGES.md');
 
     // 检测系统语言
@@ -107,6 +153,7 @@ function hasProjectMarker(root) {
       changeType: '改动类型',
       filePath: '文件路径',
       changeLog: '改动记录',
+      functionalImpact: '功能层面说明',
       risk: '风险提示',
       suggestion: '优化建议',
       typeModify: '修改文件',
@@ -135,6 +182,7 @@ function hasProjectMarker(root) {
       changeType: 'Change Type',
       filePath: 'File',
       changeLog: 'Change Record',
+      functionalImpact: 'Functional Impact',
       risk: 'Risk Alert',
       suggestion: 'Suggestion',
       typeModify: 'Modified',
@@ -186,6 +234,8 @@ function hasProjectMarker(root) {
       changeSummary += T.msgNoContent;
     }
 
+    const functionalImpact = describeFunctionLevel(relPath, diffContent, isZh);
+
     // 风险提示（基于改动特征自动生成）
     let riskNote = T.riskNormal;
     if (/^\s*D/.test(statusLine)) {
@@ -212,6 +262,10 @@ function hasProjectMarker(root) {
       `### ${T.changeLog}`,
       '',
       changeSummary,
+      '',
+      `### ${T.functionalImpact}`,
+      '',
+      functionalImpact,
       '',
       `### ${T.risk}`,
       '',
