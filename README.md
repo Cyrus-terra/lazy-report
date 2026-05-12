@@ -86,7 +86,7 @@ When Claude modifies files using `Write`, `Edit`, or `NotebookEdit`, the plugin 
 CLAUDE_CHANGES.md
 ```
 
-The change log is not synthesized by the skill. It is created only after Claude actually modifies a file in a qualifying project. Each entry uses the local system time and includes both a file-level change record and a functional-impact description.
+The change log is not synthesized by the skill. It is created only after Claude actually modifies a file in a qualifying project. Each entry uses the local system time and includes both a file-level change record and a plain-language summary of what changed.
 
 ### 2. Analysis records
 

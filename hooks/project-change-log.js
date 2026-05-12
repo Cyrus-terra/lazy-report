@@ -41,12 +41,16 @@ function systemTime() {
   ].join(' ');
 }
 
-function describeFunctionLevel(relPath, diffContent, isZh) {
-  const cleanLine = (line) => line
-    .replace(/^[+-]/, '')
-    .trim()
+function summarizeText(value, maxLength = 120) {
+  const text = String(value || '')
     .replace(/`/g, '\\`')
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function describeChangeContent(relPath, diffContent, isZh) {
+  const cleanLine = (line) => line.replace(/^[+-]/, '').trim();
   const isUsefulLine = (line) => {
     if (!line || /^(diff --git|index |--- |\+\+\+ |@@)/.test(line)) return false;
     const cleaned = cleanLine(line);
@@ -56,34 +60,34 @@ function describeFunctionLevel(relPath, diffContent, isZh) {
     .split('\n')
     .filter((line) => line.startsWith('+') && !line.startsWith('+++') && isUsefulLine(line))
     .map(cleanLine)
-    .slice(0, 5);
+    .slice(0, 3);
   const removals = diffContent
     .split('\n')
     .filter((line) => line.startsWith('-') && !line.startsWith('---') && isUsefulLine(line))
     .map(cleanLine)
-    .slice(0, 5);
+    .slice(0, 3);
 
   if (!additions.length && !removals.length) {
     return isZh
-      ? `功能层面：本次改动作用于 \`${relPath}\`，但当前没有可解析的内容差异，可能是格式化、权限变化或改动已被回滚。`
-      : `Functional impact: this change affected \`${relPath}\`, but no parseable content diff is available; it may be formatting, permission-only, or already rolled back.`;
+      ? `这次改动了 \`${relPath}\`，但没有读取到具体内容差异，可能只是格式、权限变化，或者改动已经被回滚。`
+      : `Changed \`${relPath}\`, but no concrete content diff was available; it may be formatting, permission-only, or already rolled back.`;
   }
 
-  const parts = [];
-  if (additions.length) {
-    parts.push(isZh
-      ? `新增/调整了：${additions.map((line) => `\`${line}\``).join('、')}`
-      : `Added/changed: ${additions.map((line) => `\`${line}\``).join(', ')}`);
+  if (additions.length && removals.length) {
+    return isZh
+      ? `这次把 \`${relPath}\` 里的「${summarizeText(removals.join('；'))}」改成了「${summarizeText(additions.join('；'))}」。`
+      : `Changed \`${relPath}\` from "${summarizeText(removals.join('; '))}" to "${summarizeText(additions.join('; '))}".`;
   }
-  if (removals.length) {
-    parts.push(isZh
-      ? `移除/替换了：${removals.map((line) => `\`${line}\``).join('、')}`
-      : `Removed/replaced: ${removals.map((line) => `\`${line}\``).join(', ')}`);
+
+  if (additions.length) {
+    return isZh
+      ? `这次在 \`${relPath}\` 新增了「${summarizeText(additions.join('；'))}」。`
+      : `Added "${summarizeText(additions.join('; '))}" in \`${relPath}\`.`;
   }
 
   return isZh
-    ? `功能层面：本次在 \`${relPath}\` 中${parts.join('；')}。`
-    : `Functional impact: in \`${relPath}\`, ${parts.join('; ')}.`;
+    ? `这次从 \`${relPath}\` 删除了「${summarizeText(removals.join('；'))}」。`
+    : `Removed "${summarizeText(removals.join('; '))}" from \`${relPath}\`.`;
 }
 
 function isInside(child, parent) {
@@ -161,7 +165,7 @@ function hasProjectMarker(root) {
       changeType: '改动类型',
       filePath: '文件路径',
       changeLog: '改动记录',
-      functionalImpact: '功能层面说明',
+      changeContent: '改动内容',
       risk: '风险提示',
       suggestion: '优化建议',
       typeModify: '修改文件',
@@ -190,7 +194,7 @@ function hasProjectMarker(root) {
       changeType: 'Change Type',
       filePath: 'File',
       changeLog: 'Change Record',
-      functionalImpact: 'Functional Impact',
+      changeContent: 'Change Summary',
       risk: 'Risk Alert',
       suggestion: 'Suggestion',
       typeModify: 'Modified',
@@ -242,7 +246,7 @@ function hasProjectMarker(root) {
       changeSummary += T.msgNoContent;
     }
 
-    const functionalImpact = describeFunctionLevel(relPath, diffContent, isZh);
+    const changeContent = describeChangeContent(relPath, diffContent, isZh);
 
     // 风险提示（基于改动特征自动生成）
     let riskNote = T.riskNormal;
@@ -271,9 +275,9 @@ function hasProjectMarker(root) {
       '',
       changeSummary,
       '',
-      `### ${T.functionalImpact}`,
+      `### ${T.changeContent}`,
       '',
-      functionalImpact,
+      changeContent,
       '',
       `### ${T.risk}`,
       '',
